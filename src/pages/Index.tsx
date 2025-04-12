@@ -63,7 +63,16 @@ const Index = () => {
   };
 
   const handleNewNote = () => {
-    setSelectedNote(null);
+    const newNote: Note = {
+      id: Date.now().toString(),
+      title: '未命名笔记',
+      content: '',
+      tags: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    setNotes([newNote, ...notes]);
+    setSelectedNote(newNote);
   };
 
   const handleCategoryClick = (category: string | null) => {
@@ -151,7 +160,7 @@ const Index = () => {
         </Sidebar>
 
         {/* Note List */}
-        <div className="w-1/3 border-r border-border h-full">
+        <div className="w-[280px] border-r border-border h-full">
           <div className="p-4 border-b">
             <h2 className="text-lg font-medium">所有笔记</h2>
           </div>
@@ -166,23 +175,20 @@ const Index = () => {
                 />
               ))}
               {filteredNotes.length === 0 && (
-                <p className="text-center text-muted-foreground p-4">No notes found</p>
+                <p className="text-center text-muted-foreground p-4">暂无笔记</p>
               )}
             </div>
           </ScrollArea>
         </div>
 
         {/* Note Editor */}
-        <div className="flex-1 h-full overflow-auto">
+        <div className="absolute inset-0 left-[280px] ml-[var(--sidebar-width)] overflow-hidden">
           <NoteEditor 
             note={selectedNote || undefined} 
             onSave={handleSaveNote}
             onDelete={handleDeleteNote}
           />
         </div>
-
-        {/* Sidebar trigger for mobile */}
-        <SidebarTrigger />
       </div>
     </SidebarProvider>
   );

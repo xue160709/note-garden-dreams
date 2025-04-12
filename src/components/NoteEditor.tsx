@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -19,6 +18,14 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
   const [content, setContent] = useState(note?.content || '');
   const [tags, setTags] = useState<string[]>(note?.tags || []);
   const [tagInput, setTagInput] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    setTitle(note?.title || '');
+    setContent(note?.content || '');
+    setTags(note?.tags || []);
+    setIsEditing(false);
+  }, [note]);
 
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -40,6 +47,7 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
         tags,
         updatedAt: new Date()
       });
+      setIsEditing(false);
     }
   };
 
@@ -56,28 +64,59 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
     }
   };
 
+  if (!note) {
+    return (
+      <Card className="absolute inset-0 m-4 p-6 flex flex-col items-center justify-center text-muted-foreground">
+        <p>选择或创建一个笔记开始编辑</p>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="p-6 h-full flex flex-col">
-      <div className="mb-4">
+    <Card className="absolute inset-0 m-4 p-6 flex flex-col">
+      <div className="mb-4 flex justify-between items-center">
         <Input
           placeholder="笔记标题..."
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="text-xl font-medium border-none bg-transparent focus-visible:ring-0 p-0 mb-2"
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setIsEditing(true);
+          }}
+          className="text-xl font-medium border-none bg-transparent focus-visible:ring-0 p-0 mb-2 flex-1 mr-4"
+          readOnly={!isEditing}
         />
+        <Button 
+          variant={isEditing ? "default" : "outline"}
+          onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+          className={isEditing ? "bg-note-purple hover:bg-note-purple/90" : ""}
+        >
+          {isEditing ? (
+            <>
+              <Save className="h-4 w-4 mr-1" />
+              保存
+            </>
+          ) : (
+            <>
+              <PlusCircle className="h-4 w-4 mr-1" />
+              编辑
+            </>
+          )}
+        </Button>
+      </div>
+      
+      <div className="flex flex-wrap gap-2 mb-4">
+        {tags.map(tag => (
+          <Badge 
+            key={tag} 
+            className="bg-note-light-purple text-note-dark-purple hover:bg-note-light-purple/80"
+            onClick={() => isEditing && handleRemoveTag(tag)}
+          >
+            {tag}
+            {isEditing && <span className="ml-1 cursor-pointer">×</span>}
+          </Badge>
+        ))}
         
-        <div className="flex flex-wrap gap-2 mb-4">
-          {tags.map(tag => (
-            <Badge 
-              key={tag} 
-              className="bg-note-light-purple text-note-dark-purple hover:bg-note-light-purple/80"
-              onClick={() => handleRemoveTag(tag)}
-            >
-              {tag}
-              <span className="ml-1">×</span>
-            </Badge>
-          ))}
-          
+        {isEditing && (
           <div className="flex items-center">
             <Tag className="h-4 w-4 text-note-neutral-gray mr-1" />
             <Input
@@ -96,14 +135,18 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
               <PlusCircle className="h-4 w-4" />
             </Button>
           </div>
-        </div>
+        )}
       </div>
 
       <Textarea
         placeholder="开始您的笔记..."
         value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="flex-grow resize-none border-none focus-visible:ring-0"
+        onChange={(e) => {
+          setContent(e.target.value);
+          setIsEditing(true);
+        }}
+        className="flex-1 min-h-[300px] resize-none border-none focus-visible:ring-0"
+        readOnly={!isEditing}
       />
 
       <div className="flex justify-between mt-4">
@@ -112,14 +155,9 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
           size="sm" 
           onClick={handleDelete} 
           className="text-destructive hover:bg-destructive/10"
-          disabled={!note?.id}
         >
           <Trash className="h-4 w-4 mr-1" />
           删除
-        </Button>
-        <Button onClick={handleSave} className="bg-note-purple hover:bg-note-purple/90">
-          <Save className="h-4 w-4 mr-1" />
-          保存
         </Button>
       </div>
     </Card>
