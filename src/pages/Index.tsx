@@ -1,205 +1,154 @@
-
-import React, { useState, useEffect } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { NoteListItem, type Note } from '@/components/NoteListItem';
+import React, { useState } from 'react';
 import { NoteEditor } from '@/components/NoteEditor';
+import { NoteListItem, type Note } from '@/components/NoteListItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/components/ui/use-toast';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarTrigger
+} from '@/components/ui/sidebar';
 
-// Mock data for initial notes
-const initialNotes: Note[] = [
+// Sample data
+const sampleNotes: Note[] = [
   {
     id: '1',
-    title: '欢迎使用笔记本',
-    content: '这是您的第一个笔记。您可以在这里记录您的想法、创意和任务。',
-    tags: ['欢迎', '入门'],
-    createdAt: new Date('2025-04-10T12:00:00'),
-    updatedAt: new Date('2025-04-10T12:00:00'),
+    title: '会议记录',
+    content: '今天的会议我们讨论了项目进度...',
+    tags: ['工作', '会议'],
+    createdAt: new Date('2023-04-10'),
+    updatedAt: new Date('2023-04-10')
   },
   {
     id: '2',
-    title: '如何使用标签',
-    content: '标签是一种强大的组织工具，可以帮助您快速找到相关笔记。点击添加标签按钮来创建新标签。',
-    tags: ['提示', '标签', '组织'],
-    createdAt: new Date('2025-04-11T08:30:00'),
-    updatedAt: new Date('2025-04-11T08:30:00'),
+    title: '购物清单',
+    content: '1. 牛奶\n2. 面包\n3. 水果',
+    tags: ['个人', '购物'],
+    createdAt: new Date('2023-04-08'),
+    updatedAt: new Date('2023-04-09')
   },
   {
     id: '3',
-    title: '每日任务',
-    content: '1. 完成项目报告\n2. 回复邮件\n3. 准备明天的会议',
-    tags: ['任务', '工作'],
-    createdAt: new Date('2025-04-12T09:15:00'),
-    updatedAt: new Date('2025-04-12T09:15:00'),
-  },
+    title: '学习计划',
+    content: '本周学习React和TypeScript...',
+    tags: ['学习', '编程'],
+    createdAt: new Date('2023-04-05'),
+    updatedAt: new Date('2023-04-07')
+  }
 ];
 
-export default function Index() {
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+const Index = () => {
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [notes, setNotes] = useState<Note[]>(sampleNotes);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [selectedNotebook, setSelectedNotebook] = useState<string | null>(null);
 
-  // Get the currently selected note
-  const selectedNote = selectedNoteId ? notes.find(note => note.id === selectedNoteId) : undefined;
-
-  // Get all notebooks and tags from notes
-  const notebooks = Array.from(new Set(notes.map(note => {
-    // Here you would extract the notebook from the note
-    // For now, we'll simulate with the first tag
-    return note.tags[0] || 'Untitled';
-  })));
-  
+  // Get unique notebooks and tags
+  const notebooks = Array.from(new Set(notes.map(note => note.tags[0] || 'Uncategorized')));
   const tags = Array.from(new Set(notes.flatMap(note => note.tags)));
 
-  // Filter notes based on selected category or tag
   const filteredNotes = notes.filter(note => {
-    if (selectedCategory) {
-      // For demo purposes, we're using the first tag as a category
-      // In a real app, you'd have a specific notebook field
-      return note.tags[0] === selectedCategory;
-    }
-    if (selectedTag) {
-      return note.tags.includes(selectedTag);
-    }
+    if (selectedTag && !note.tags.includes(selectedTag)) return false;
+    if (selectedNotebook && !note.tags.includes(selectedNotebook)) return false;
     return true;
   });
 
-  // Create a new note
-  const handleNewNote = () => {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      title: '新笔记',
-      content: '',
-      tags: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    setNotes([newNote, ...notes]);
-    setSelectedNoteId(newNote.id);
-    
-    toast({
-      title: "已创建新笔记",
-      description: "您可以开始编辑笔记了",
-    });
-  };
-
-  // Save note
   const handleSaveNote = (updatedNote: Partial<Note>) => {
-    setNotes(prevNotes => 
-      prevNotes.map(note => 
-        note.id === updatedNote.id 
-          ? { ...note, ...updatedNote } as Note
-          : note
-      )
-    );
-    
-    toast({
-      title: "已保存",
-      description: "您的笔记已成功保存",
-    });
+    if (updatedNote.id) {
+      // Update existing note
+      setNotes(notes.map(note => 
+        note.id === updatedNote.id ? { ...note, ...updatedNote } as Note : note
+      ));
+    } else {
+      // Create new note
+      const newNote: Note = {
+        id: Date.now().toString(),
+        title: updatedNote.title || 'Untitled',
+        content: updatedNote.content || '',
+        tags: updatedNote.tags || [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      setNotes([newNote, ...notes]);
+      setSelectedNote(newNote);
+    }
   };
 
-  // Delete note
   const handleDeleteNote = (id: string) => {
-    setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
-    setSelectedNoteId(null);
-    
-    toast({
-      title: "已删除",
-      description: "笔记已被删除",
-      variant: "destructive",
-    });
+    setNotes(notes.filter(note => note.id !== id));
+    if (selectedNote && selectedNote.id === id) {
+      setSelectedNote(null);
+    }
   };
 
-  // Toggle sidebar
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
-
-  // Handle category click
-  const handleCategoryClick = (category: string | null) => {
-    setSelectedCategory(category);
-    setSelectedTag(null);
-  };
-
-  // Handle tag click
-  const handleTagClick = (tag: string) => {
-    setSelectedTag(tag);
-    setSelectedCategory(null);
+  const handleNewNote = () => {
+    setSelectedNote(null);
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Sidebar */}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={toggleSidebar}
-        onNewNote={handleNewNote}
-        onCategoryClick={handleCategoryClick}
-        onTagClick={handleTagClick}
-        selectedCategory={selectedCategory}
-        notebooks={notebooks}
-        tags={tags}
-      />
-      
-      {/* Notes List */}
-      <div className={`border-r border-border ${selectedNoteId ? 'w-1/3' : 'w-2/3'} flex flex-col h-full`}>
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold">
-            {selectedCategory ? selectedCategory : selectedTag ? `标签: ${selectedTag}` : '所有笔记'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {filteredNotes.length} 个笔记
-          </p>
-        </div>
-        
-        <ScrollArea className="flex-grow">
-          <div className="p-4">
-            {filteredNotes.map(note => (
-              <NoteListItem
-                key={note.id}
-                note={note}
-                isSelected={selectedNoteId === note.id}
-                onClick={() => setSelectedNoteId(note.id)}
-              />
-            ))}
-            
-            {filteredNotes.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>没有找到笔记</p>
-              </div>
-            )}
+    <SidebarProvider>
+      <div className="flex h-screen bg-background">
+        {/* Sidebar */}
+        <Sidebar>
+          <SidebarHeader>
+            <div className="p-4">
+              <h1 className="text-lg font-semibold">笔记本</h1>
+              <button 
+                className="bg-note-purple hover:bg-note-purple/90 text-white w-full p-2 rounded mt-2 flex items-center justify-center"
+                onClick={handleNewNote}
+              >
+                新建笔记
+              </button>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            {/* Sidebar content goes here */}
+          </SidebarContent>
+          <SidebarFooter>
+            {/* Footer content */}
+          </SidebarFooter>
+        </Sidebar>
+
+        {/* Note List */}
+        <div className="w-1/3 border-r border-border h-full">
+          <div className="p-4 border-b">
+            <h2 className="text-lg font-medium">所有笔记</h2>
           </div>
-        </ScrollArea>
-      </div>
-      
-      {/* Note Editor */}
-      {selectedNoteId ? (
-        <div className="w-2/3 h-full">
+          <ScrollArea className="h-[calc(100vh-60px)]">
+            <div className="p-4">
+              {filteredNotes.map(note => (
+                <NoteListItem
+                  key={note.id}
+                  note={note}
+                  isSelected={selectedNote?.id === note.id}
+                  onClick={() => setSelectedNote(note)}
+                />
+              ))}
+              {filteredNotes.length === 0 && (
+                <p className="text-center text-muted-foreground p-4">No notes found</p>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Note Editor */}
+        <div className="flex-1 h-full overflow-auto">
           <NoteEditor 
-            note={selectedNote} 
+            note={selectedNote || undefined} 
             onSave={handleSaveNote}
             onDelete={handleDeleteNote}
           />
         </div>
-      ) : (
-        <div className="w-1/3 h-full hidden md:flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <p>选择一个笔记来查看和编辑</p>
-            <p>或</p>
-            <button
-              onClick={handleNewNote}
-              className="text-note-purple hover:underline mt-2"
-            >
-              创建新笔记
-            </button>
-          </div>
+
+        {/* Sidebar trigger for mobile */}
+        <div className="fixed bottom-4 right-4 md:hidden">
+          <SidebarTrigger />
         </div>
-      )}
-    </div>
+      </div>
+    </SidebarProvider>
   );
-}
+};
+
+export default Index;
