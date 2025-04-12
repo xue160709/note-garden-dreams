@@ -3,13 +3,81 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Tag, Save, Trash, Sparkles } from 'lucide-react';
+import { PlusCircle, Tag, Save, Trash, Sparkles, Brain } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { type Note } from './NoteListItem';
 import { toast } from 'sonner';
 
 // 在文件顶部添加环境变量
 const SILICONFLOW_API_KEY = import.meta.env.VITE_SILICONFLOW_API_KEY;
+const MCP_URL = 'http://127.0.0.1:8090';
+
+// 添加 callOpenAIFunctionAndProcessToolCalls 函数
+async function callOpenAIFunctionAndProcessToolCalls(systemPrompt: string | undefined, tools: any[], noteContent: string) {
+  const url = 'https://api.siliconflow.cn/v1/chat/completions';
+
+  let messages = systemPrompt
+    ? [
+        {
+          role: 'system',
+          content: systemPrompt
+        }
+      ]
+    : [];
+
+  const requestBody = {
+    model: 'Qwen/Qwen2.5-72B-Instruct-128K',
+    messages: [
+      ...messages,
+      {
+        role: 'user',
+        content: noteContent
+      }
+    ],
+    tools,
+    tool_choice: 'auto'
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SILICONFLOW_API_KEY}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await response.json();
+
+    const toolCalls = data.choices[0].message.tool_calls;
+    if (!toolCalls || toolCalls.length === 0) {
+      console.log('No tool calls in response.');
+      return null;
+    }
+
+    const processedToolCalls = toolCalls
+      .map(toolCall => {
+        const functionName = toolCall.function.name;
+        try {
+          const functionArgs = JSON.parse(toolCall.function.arguments.trim());
+          return {
+            id: toolCall.id,
+            name: functionName,
+            arguments: functionArgs
+          };
+        } catch (error) {
+          console.log(error);
+        }
+      })
+      .filter(Boolean);
+
+    return processedToolCalls;
+  } catch (error) {
+    console.error('Error:', error);
+    return null;
+  }
+}
 
 interface NoteEditorProps {
   note?: Note;
@@ -158,6 +226,52 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
     }
   };
 
+  const handleMemory = async () => {
+    if (!content.trim()) {
+      toast.error('请先输入笔记内容');
+      return;
+    }
+
+    try {
+      // 准备 MCP 工具
+      const { prepareTools } = await import('mcp-uiux/dist/MCPClient.js');
+      const { mcpClient, tools, toolsFunctionCall, systemPrompts } = await prepareTools(MCP_URL);
+
+      // 获取知识提取器提示
+      const knowledgeExtractorPrompt = systemPrompts.find(
+        s => s.name === 'knowledge_extractor'
+      );
+
+      // 获取知识工具
+      const knowledgeTools = toolsFunctionCall.filter(t =>
+        ['create_relations', 'create_entities'].includes(t.function.name)
+      );
+
+      // 调用函数
+      const toolsResult = await callOpenAIFunctionAndProcessToolCalls(
+        knowledgeExtractorPrompt?.systemPrompt,
+        knowledgeTools,
+        content
+      );
+
+      if (toolsResult) {
+        for (const item of toolsResult) {
+          const tool = tools.find(t => t.name === item.name);
+          if (tool) {
+            const result = await tool.execute(item.arguments);
+            console.log('工具执行结果', item.name, result);
+          }
+        }
+        toast.success('知识提取完成');
+      }
+
+      await mcpClient.disconnect();
+    } catch (error) {
+      console.error('知识提取失败:', error);
+      toast.error('知识提取失败，请重试');
+    }
+  };
+
   if (!note) {
     return (
       <Card className="absolute inset-0 m-4 p-6 flex flex-col items-center justify-center text-muted-foreground">
@@ -179,6 +293,15 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
           >
             <Sparkles className="h-4 w-4 mr-1" />
             {isGenerating ? '生成中...' : 'AI 生成'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleMemory}
+            className="bg-note-light-purple hover:bg-note-light-purple/80"
+          >
+            <Brain className="h-4 w-4 mr-1" />
+            记忆
           </Button>
           <Input
             placeholder="笔记标题..."
