@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { NoteEditor } from '@/components/NoteEditor';
 import { NoteListItem, type Note } from '@/components/NoteListItem';
@@ -13,38 +12,11 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Search, Book, Hash, ChevronDown, ChevronRight, PlusCircle } from 'lucide-react';
-
-// Sample data
-const sampleNotes: Note[] = [
-  {
-    id: '1',
-    title: '会议记录',
-    content: '今天的会议我们讨论了项目进度...',
-    tags: ['工作', '会议'],
-    createdAt: new Date('2023-04-10'),
-    updatedAt: new Date('2023-04-10')
-  },
-  {
-    id: '2',
-    title: '购物清单',
-    content: '1. 牛奶\n2. 面包\n3. 水果',
-    tags: ['个人', '购物'],
-    createdAt: new Date('2023-04-08'),
-    updatedAt: new Date('2023-04-09')
-  },
-  {
-    id: '3',
-    title: '学习计划',
-    content: '本周学习React和TypeScript...',
-    tags: ['学习', '编程'],
-    createdAt: new Date('2023-04-05'),
-    updatedAt: new Date('2023-04-07')
-  }
-];
+import { useNotes } from '@/hooks/useNotes';
 
 const Index = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [notes, setNotes] = useState<Note[]>(sampleNotes);
+  const { notes, setNotes } = useNotes();
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedNotebook, setSelectedNotebook] = useState<string | null>(null);
 
@@ -62,7 +34,11 @@ const Index = () => {
     if (updatedNote.id) {
       // Update existing note
       setNotes(notes.map(note => 
-        note.id === updatedNote.id ? { ...note, ...updatedNote } as Note : note
+        note.id === updatedNote.id ? { 
+          ...note, 
+          ...updatedNote,
+          updatedAt: new Date() 
+        } as Note : note
       ));
     } else {
       // Create new note
@@ -206,9 +182,7 @@ const Index = () => {
         </div>
 
         {/* Sidebar trigger for mobile */}
-        <div className="fixed bottom-4 right-4 md:hidden">
-          <SidebarTrigger />
-        </div>
+        <SidebarTrigger />
       </div>
     </SidebarProvider>
   );
