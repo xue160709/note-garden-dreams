@@ -3,9 +3,13 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Tag, Save, Trash } from 'lucide-react';
+import { PlusCircle, Tag, Save, Trash, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { type Note } from './NoteListItem';
+import { toast } from 'sonner';
+
+// 在文件顶部添加环境变量
+const SILICONFLOW_API_KEY = import.meta.env.VITE_SILICONFLOW_API_KEY;
 
 interface NoteEditorProps {
   note?: Note;
@@ -19,6 +23,7 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
   const [tags, setTags] = useState<string[]>(note?.tags || []);
   const [tagInput, setTagInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     setTitle(note?.title || '');
@@ -64,6 +69,95 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
     }
   };
 
+  const handleGenerateAI = async () => {
+    console.log('开始 AI 生成流程...');
+    if (!content.trim()) {
+      console.log('错误：笔记内容为空');
+      toast.error('请先输入笔记内容');
+      return;
+    }
+
+    if (!SILICONFLOW_API_KEY) {
+      console.log('错误：API Key 未配置');
+      toast.error('API Key 未配置');
+      return;
+    }
+
+    console.log('准备发送请求到 SiliconFlow API...');
+    setIsGenerating(true);
+    try {
+      console.log('发送请求中...');
+      const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SILICONFLOW_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "Qwen/Qwen2.5-7B-Instruct",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个专业的笔记助手。请根据提供的笔记内容，生成3-5个相关的标签（用逗号分隔）和一段简短的摘要。格式：标签：tag1,tag2,tag3\n摘要：这里是摘要内容"
+            },
+            {
+              role: "user",
+              content: content
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+
+      console.log('收到 API 响应');
+      const data = await response.json();
+      console.log('API 响应数据:', data);
+
+      if (data.choices && data.choices[0]?.message?.content) {
+        const result = data.choices[0].message.content;
+        console.log('AI 生成结果:', result);
+        
+        const [tagsLine, summaryLine] = result.split('\n');
+        
+        // 处理标签
+        const newTags = tagsLine.replace('标签：', '').split(',').map(tag => tag.trim());
+        console.log('新生成的标签:', newTags);
+        setTags([...new Set([...tags, ...newTags])]);
+        
+        // 处理摘要
+        const summary = summaryLine.replace('摘要：', '').trim();
+        console.log('生成的摘要:', summary);
+        const newContent = summary + '\n\n---\n\n' + content;
+        setContent(newContent);
+        
+        console.log('AI 生成完成');
+        toast.success('AI 生成完成');
+        
+        // 自动保存生成的标签和内容
+        if (onSave) {
+          console.log('正在保存生成的标签和内容...');
+          onSave({
+            id: note?.id,
+            title,
+            content: newContent,
+            tags: [...new Set([...tags, ...newTags])],
+            updatedAt: new Date()
+          });
+          console.log('保存完成');
+        }
+      } else {
+        console.log('错误：API 响应格式不正确');
+      }
+    } catch (error) {
+      console.error('AI 生成失败:', error);
+      toast.error('AI 生成失败，请重试');
+    } finally {
+      console.log('结束 AI 生成流程');
+      setIsGenerating(false);
+    }
+  };
+
   if (!note) {
     return (
       <Card className="absolute inset-0 m-4 p-6 flex flex-col items-center justify-center text-muted-foreground">
@@ -75,16 +169,28 @@ export function NoteEditor({ note, onSave, onDelete }: NoteEditorProps) {
   return (
     <Card className="absolute inset-0 m-4 p-6 flex flex-col">
       <div className="mb-4 flex justify-between items-center">
-        <Input
-          placeholder="笔记标题..."
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            setIsEditing(true);
-          }}
-          className="text-xl font-medium border-none bg-transparent focus-visible:ring-0 p-0 mb-2 flex-1 mr-4"
-          readOnly={!isEditing}
-        />
+        <div className="flex items-center gap-2 flex-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateAI}
+            disabled={isGenerating}
+            className="bg-note-light-purple hover:bg-note-light-purple/80"
+          >
+            <Sparkles className="h-4 w-4 mr-1" />
+            {isGenerating ? '生成中...' : 'AI 生成'}
+          </Button>
+          <Input
+            placeholder="笔记标题..."
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setIsEditing(true);
+            }}
+            className="text-xl font-medium border-none bg-transparent focus-visible:ring-0 p-0 mb-2 flex-1"
+            readOnly={!isEditing}
+          />
+        </div>
         <Button 
           variant={isEditing ? "default" : "outline"}
           onClick={() => isEditing ? handleSave() : setIsEditing(true)}
