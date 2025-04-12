@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { NoteEditor } from '@/components/NoteEditor';
 import { NoteListItem, type Note } from '@/components/NoteListItem';
@@ -10,6 +11,8 @@ import {
   SidebarFooter,
   SidebarTrigger
 } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { Search, Book, Hash, ChevronDown, ChevronRight, PlusCircle } from 'lucide-react';
 
 // Sample data
 const sampleNotes: Note[] = [
@@ -87,6 +90,14 @@ const Index = () => {
     setSelectedNote(null);
   };
 
+  const handleCategoryClick = (category: string | null) => {
+    setSelectedNotebook(category);
+  };
+
+  const handleTagClick = (tag: string) => {
+    setSelectedTag(tag);
+  };
+
   return (
     <SidebarProvider>
       <div className="flex h-screen bg-background">
@@ -95,16 +106,68 @@ const Index = () => {
           <SidebarHeader>
             <div className="p-4">
               <h1 className="text-lg font-semibold">笔记本</h1>
-              <button 
+              <Button 
                 className="bg-note-purple hover:bg-note-purple/90 text-white w-full p-2 rounded mt-2 flex items-center justify-center"
                 onClick={handleNewNote}
               >
+                <PlusCircle className="h-4 w-4 mr-2" />
                 新建笔记
-              </button>
+              </Button>
             </div>
           </SidebarHeader>
           <SidebarContent>
-            {/* Sidebar content goes here */}
+            <div className="px-4">
+              <Button
+                variant="ghost"
+                className="w-full justify-start font-normal mb-1"
+                onClick={() => handleCategoryClick(null)}
+              >
+                <Book className="h-5 w-5 mr-2" />
+                所有笔记
+              </Button>
+
+              {/* Notebooks Section */}
+              <div className="py-1">
+                <div className="flex items-center py-2 text-sm font-medium">
+                  <ChevronDown className="h-4 w-4 mr-1" />
+                  <Book className="h-4 w-4 mr-2" />
+                  笔记本
+                </div>
+                <div className="pl-9">
+                  {notebooks.map((notebook) => (
+                    <Button
+                      key={notebook}
+                      variant="ghost"
+                      className="w-full justify-start py-1 px-2 font-normal text-sm"
+                      onClick={() => handleCategoryClick(notebook)}
+                    >
+                      {notebook}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tags Section */}
+              <div className="py-1">
+                <div className="flex items-center py-2 text-sm font-medium">
+                  <ChevronDown className="h-4 w-4 mr-1" />
+                  <Hash className="h-4 w-4 mr-2" />
+                  标签
+                </div>
+                <div className="pl-9">
+                  {tags.map((tag) => (
+                    <Button
+                      key={tag}
+                      variant="ghost"
+                      className="w-full justify-start py-1 px-2 font-normal text-sm"
+                      onClick={() => handleTagClick(tag)}
+                    >
+                      {tag}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </SidebarContent>
           <SidebarFooter>
             {/* Footer content */}
